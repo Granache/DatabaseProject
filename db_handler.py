@@ -98,7 +98,14 @@ def get_filtered_customers(filter_attributes: Customer = None, use_patterns: boo
     """
     Returns a list of Customer objects matching the filters.
     """
-    raise NotImplementedError("you must implement this function")
+    query = f"SELECT * FROM customer"
+    query += f" WHERE c_customer_id = '{filter_attributes.customer_id}'"
+    query += f";"
+    cur.execute(query)
+    results = []
+    for customer in cur:
+        results.append(customer)
+    return results
 
 
 def get_filtered_rentals(filter_attributes: Rental = None,
