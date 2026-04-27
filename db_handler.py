@@ -1,3 +1,5 @@
+import datetime
+
 from MARIADB_CREDS import DB_CONFIG
 from mariadb import connect
 from models.RentalHistory import RentalHistory
@@ -44,7 +46,12 @@ def rent_item(item_id: str = None, customer_id: str = None):
     item_id - A string containing the Item ID for the item being rented.
     customer_id - A string containing the customer id of the customer renting the item.
     """
-    raise NotImplementedError("you must implement this function")
+    rent_date = datetime.date.today()
+    due_date = rent_date + datetime.timedelta(days=14)
+    print(f"{due_date}")
+    query = (f"INSERT INTO rental (item_id, customer_id, rental_date, due_date) VALUES ('{item_id}', '{customer_id}', "
+             f"'{rent_date}', '{due_date}');")
+    cur.execute(query)
 
 
 def waitlist_customer(item_id: str = None, customer_id: str = None) -> int:
@@ -52,9 +59,10 @@ def waitlist_customer(item_id: str = None, customer_id: str = None) -> int:
     Returns the customer's new place in line.
     """
     line_size = line_length(item_id) + 1
+    print(f"New place: {line_size}")
     query = f"INSERT INTO waitlist (item_id, customer_id, place_in_line) VALUES ('{item_id}', '{customer_id}', {line_size});"
     cur.execute(query)
-    return line_size+1
+    return line_size
 
 def update_waitlist(item_id: str = None):
     """
@@ -189,6 +197,7 @@ def place_in_line(item_id: str = None, customer_id: str = None) -> int:
     waitlist_place = -1
     for line_place in cur:
         waitlist_place = line_place[0]
+    print(f"Place in line: {waitlist_place}")
     return waitlist_place
 
 
@@ -196,13 +205,14 @@ def line_length(item_id: str = None) -> int:
     """
     Returns how many people are on the waitlist for this item.
     """
-    query = f"SELECT COUNT(*) FROM waitlist"
+    query = f"SELECT * FROM waitlist"
     query += f" WHERE item_id = '{item_id}'"
     query += f";"
     cur.execute(query)
     waitlist_place = 0
     for line_place in cur:
         waitlist_place += 1
+    print(f"Line length: {waitlist_place}")
     return waitlist_place
 
 
