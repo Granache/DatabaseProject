@@ -179,14 +179,28 @@ def place_in_line(item_id: str = None, customer_id: str = None) -> int:
     """
     Returns the customer's place_in_line, or -1 if not on waitlist.
     """
-    raise NotImplementedError("you must implement this function")
+    query = f"SELECT place_in_line FROM waitlist"
+    query += f" WHERE item_id = '{item_id}' AND customer_id = '{customer_id}'"
+    query += f";"
+    cur.execute(query)
+    waitlist_place = -1
+    for line_place in cur:
+        waitlist_place = line_place[0]
+    return waitlist_place
 
 
 def line_length(item_id: str = None) -> int:
     """
     Returns how many people are on the waitlist for this item.
     """
-    raise NotImplementedError("you must implement this function")
+    query = f"SELECT COUNT(*) FROM waitlist"
+    query += f" WHERE item_id = '{item_id}'"
+    query += f";"
+    cur.execute(query)
+    waitlist_place = 0
+    for line_place in cur:
+        waitlist_place += 1
+    return waitlist_place
 
 
 def save_changes():
