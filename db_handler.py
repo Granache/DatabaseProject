@@ -83,14 +83,15 @@ def get_filtered_items(filter_attributes: Item = None,
     """
     Returns a list of Item objects matching the filters.
     """
-    print("\nSelecting data...")
-    query = "SELECT * FROM item;"
+    query = f"SELECT * FROM item"
+    query += f" WHERE i_item_id = '{filter_attributes.item_id}'"
+    query += f";"
     cur.execute(query)
+    results = []
     for item in cur:
-        print(f"Name: {item[4]}")
+        results.append(item)
+    return results
 
-
-    raise NotImplementedError("you must implement this function")
 
 
 def get_filtered_customers(filter_attributes: Customer = None, use_patterns: bool = False) -> list[Customer]:
