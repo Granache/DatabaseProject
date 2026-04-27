@@ -51,7 +51,10 @@ def waitlist_customer(item_id: str = None, customer_id: str = None) -> int:
     """
     Returns the customer's new place in line.
     """
-    raise NotImplementedError("you must implement this function")
+    line_size = line_length(item_id) + 1
+    query = f"INSERT INTO waitlist (item_id, customer_id, place_in_line) VALUES ('{item_id}', '{customer_id}', {line_size});"
+    cur.execute(query)
+    return line_size+1
 
 def update_waitlist(item_id: str = None):
     """
