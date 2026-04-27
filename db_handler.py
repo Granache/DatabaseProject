@@ -83,6 +83,13 @@ def get_filtered_items(filter_attributes: Item = None,
     """
     Returns a list of Item objects matching the filters.
     """
+    print("\nSelecting data...")
+    query = "SELECT * FROM item;"
+    cur.execute(query)
+    for item in cur:
+        print(f"Name: {item[4]}")
+
+
     raise NotImplementedError("you must implement this function")
 
 
