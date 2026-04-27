@@ -145,7 +145,25 @@ def number_in_stock(item_id: str = None) -> int:
     """
     Returns num_owned - active rentals. Returns -1 if item doesn't exist.
     """
-    raise NotImplementedError("you must implement this function")
+    query = f"SELECT i_num_owned FROM item"
+    query += f" WHERE i_item_id = '{item_id}'"
+    query += f";"
+    cur.execute(query)
+    num_owned = 0
+    for item in cur:
+        num_owned = item[0]
+    print(f"Number owned: {num_owned}")
+
+    query = f"SELECT COUNT(*) FROM rental"
+    query += f" WHERE item_id = '{item_id}'"
+    query += f";"
+    cur.execute(query)
+    num_rented = 0
+    for rented_item in cur:
+        num_rented = rented_item[0]
+    print(f"Number rented: {num_rented}")
+
+    return num_owned - num_rented
 
 
 def place_in_line(item_id: str = None, customer_id: str = None) -> int:
