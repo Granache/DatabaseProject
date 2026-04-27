@@ -116,7 +116,16 @@ def get_filtered_rentals(filter_attributes: Rental = None,
     """
     Returns a list of Rental objects matching the filters.
     """
-    raise NotImplementedError("you must implement this function")
+    print(f"Filter: {filter_attributes}")
+    query = f"SELECT * FROM rental"
+    query += f" WHERE customer_id = '{filter_attributes.customer_id}'"
+    query += f" AND item_id = '{filter_attributes.item_id}'"
+    query += f";"
+    cur.execute(query)
+    results = []
+    for rental in cur:
+        results.append(rental)
+    return results
 
 
 def get_filtered_rental_histories(filter_attributes: RentalHistory = None,
