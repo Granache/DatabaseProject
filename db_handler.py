@@ -140,13 +140,17 @@ def get_filtered_items(filter_attributes: Item = None,
     """
     Returns a list of Item objects matching the filters.
     """
-    query = f"SELECT * FROM item"
+    """Selects all the values from item as well as the year from the item start date"""
+    query = f"SELECT *, YEAR(i_rec_start_date) FROM item"
     query += f" WHERE i_item_id = '{filter_attributes.item_id}'"
     query += f";"
     cur.execute(query)
+
+    """Creates new Item objects based on the seleted values and passes them into a list of Items"""
     results = []
-    for item in cur:
-        results.append(item)
+    for row in cur:
+        sel_items = Item(item_id=row[1], product_name=row[3], brand=row[4], category=row[6], manufact=row[7], current_price=row[8], num_owned=row[9], start_year=row[10])
+        results.append(sel_items)
     return results
 
 
