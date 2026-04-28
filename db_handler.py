@@ -88,7 +88,41 @@ def edit_customer(original_customer_id: str = None, new_customer: Customer = Non
     original_customer_id - A string containing the customer id for the customer to be edited.
     new_customer - A Customer object containing attributes to update. If an attribute is None, it should not be altered.
     """
-    raise NotImplementedError("you must implement this function")
+    """Gets the address sk for the original customer"""
+    query = f"SELECT c_current_addr_sk FROM customer WHERE c_customer_id = '{original_customer_id}';"
+    cur.execute(query)
+    addr_sk = 0
+    for row in cur:
+        addr_sk = row[0]
+
+    """Updates the customer_address table if a new address is provided"""
+    if new_customer.address is not None:
+        address_sections = new_customer.address.split(",")
+        street = address_sections[0].split(" ", 1)
+        street_number = street[0]
+        street_name = street[1]
+        city_name = address_sections[1][1:]
+        state_and_zip = address_sections[2][1:].split()
+        state = state_and_zip[0]
+        zip_code = state_and_zip[1]
+
+        query = (f"UPDATE customer_address SET ca_street_number = '{street_number}', ca_street_name = '{street_name}', "
+                 f"ca_city = '{city_name}', ca_state = '{state}', ca_zip = '{zip_code}' "
+                 f"WHERE ca_address_sk = {addr_sk};")
+        cur.execute(query)
+
+    """Builds and executes an UPDATE query for the customer table with non-None attributes"""
+    query = f"UPDATE customer SET "
+    if new_customer.customer_id is not None:
+        query += f"c_customer_id = '{new_customer.customer_id}', "
+    if new_customer.name is not None:
+        customer_name = new_customer.name.split()
+        query += f"c_first_name = '{customer_name[0]}', "
+        query += f"c_last_name = '{customer_name[1]}', "
+    if new_customer.email is not None:
+        query += f"c_email_address = '{new_customer.email}', "
+    query = query[:-2] + f" WHERE c_customer_id = '{original_customer_id}';"
+    cur.execute(query)
 
 
 def rent_item(item_id: str = None, customer_id: str = None):
@@ -192,15 +226,54 @@ def get_filtered_items(filter_attributes: Item = None,
     """
     """Selects all the values from item as well as the year from the item start date"""
     query = f"SELECT *, YEAR(i_rec_start_date) FROM item"
-    query += f" WHERE i_item_id = '{filter_attributes.item_id}'"
-    query += f";"
+    op = "LIKE" if use_patterns else "="
+
+    """Checks if any filter attributes or range filters are set"""
+    has_filter = (filter_attributes is not None and
+                  (filter_attributes.item_id is not None or filter_attributes.product_name is not None
+                   or filter_attributes.brand is not None or filter_attributes.category is not None
+                   or filter_attributes.manufact is not None
+                   or (filter_attributes.current_price is not None and filter_attributes.current_price != -1)
+                   or (filter_attributes.num_owned is not None and filter_attributes.num_owned != -1)))
+    has_filter = has_filter or min_price != -1 or max_price != -1 or min_start_year != -1 or max_start_year != -1
+
+    """Appends a WHERE clause with the desired filters if any exist"""
+    if has_filter:
+        query += " WHERE "
+        if filter_attributes is not None:
+            if filter_attributes.item_id is not None:
+                query += f"i_item_id {op} '{filter_attributes.item_id}' AND "
+            if filter_attributes.product_name is not None:
+                query += f"i_product_name {op} '{filter_attributes.product_name}' AND "
+            if filter_attributes.brand is not None:
+                query += f"i_brand {op} '{filter_attributes.brand}' AND "
+            if filter_attributes.category is not None:
+                query += f"i_category {op} '{filter_attributes.category}' AND "
+            if filter_attributes.manufact is not None:
+                query += f"i_manufact {op} '{filter_attributes.manufact}' AND "
+            if filter_attributes.current_price is not None and filter_attributes.current_price != -1:
+                query += f"i_current_price = {filter_attributes.current_price} AND "
+            if filter_attributes.num_owned is not None and filter_attributes.num_owned != -1:
+                query += f"i_num_owned = {filter_attributes.num_owned} AND "
+        if min_price != -1:
+            query += f"i_current_price >= {min_price} AND "
+        if max_price != -1:
+            query += f"i_current_price <= {max_price} AND "
+        if min_start_year != -1:
+            query += f"YEAR(i_rec_start_date) >= {min_start_year} AND "
+        if max_start_year != -1:
+            query += f"YEAR(i_rec_start_date) <= {max_start_year} AND "
+        query = query[:-4] + ";"
+    else:
+        query += ";"
+
     cur.execute(query)
 
-    """Creates new Item objects based on the seleted values and passes them into a list of Items"""
+    """Creates new Item objects based on the selected values and appends them to a list"""
     results = []
     for row in cur:
-        sel_items = Item(item_id=row[1], product_name=row[3], brand=row[4], category=row[6], manufact=row[7], current_price=row[8], num_owned=row[9], start_year=row[10])
-        results.append(sel_items)
+        sel_item = Item(item_id=row[1], product_name=row[3], brand=row[4], category=row[6], manufact=row[7], current_price=row[8], num_owned=row[9], start_year=row[10])
+        results.append(sel_item)
     return results
 
 
@@ -210,12 +283,33 @@ def get_filtered_customers(filter_attributes: Customer = None, use_patterns: boo
     Returns a list of Customer objects matching the filters.
     """
     query = f"SELECT * FROM customer"
-    query += f" WHERE c_customer_id = '{filter_attributes.customer_id}'"
-    query += f";"
+    op = "LIKE" if use_patterns else "="
+
+    """Checks if any filter attributes are set"""
+    has_filter = (filter_attributes is not None and
+                  (filter_attributes.customer_id is not None or filter_attributes.name is not None
+                   or filter_attributes.email is not None))
+
+    """Appends a WHERE clause with the desired filters if any exist"""
+    if has_filter:
+        query += " WHERE "
+        if filter_attributes.customer_id is not None:
+            query += f"c_customer_id {op} '{filter_attributes.customer_id}' AND "
+        if filter_attributes.name is not None:
+            query += f"CONCAT(TRIM(c_first_name), ' ', TRIM(c_last_name)) {op} '{filter_attributes.name}' AND "
+        if filter_attributes.email is not None:
+            query += f"c_email_address {op} '{filter_attributes.email}' AND "
+        query = query[:-4] + ";"
+    else:
+        query += ";"
+
     cur.execute(query)
+
+    """Creates new Customer objects based on the selected values and appends them to a list"""
     results = []
-    for customer in cur:
-        results.append(customer)
+    for row in cur:
+        sel_customer = Customer(customer_id=row[1], name=row[2].strip() + " " + row[3].strip(), email=row[4])
+        results.append(sel_customer)
     return results
 
 
@@ -230,13 +324,39 @@ def get_filtered_rentals(filter_attributes: Rental = None,
     """Starts the query with our selection statement"""
     query = f"SELECT * FROM rental"
 
-    """adds a Where clause with our filter attributes"""
-    query += f" WHERE customer_id = '{filter_attributes.customer_id}'"
-    query += f" AND item_id = '{filter_attributes.item_id}'"
+    """Checks if any filter attributes or range filters are set"""
+    has_filter = (filter_attributes is not None and
+                  (filter_attributes.item_id is not None or filter_attributes.customer_id is not None
+                   or filter_attributes.rental_date is not None or filter_attributes.due_date is not None))
+    has_filter = (has_filter or min_rental_date is not None or max_rental_date is not None
+                  or min_due_date is not None or max_due_date is not None)
 
-    """finishes the query statement with a ; and executes"""
-    query += f";"
+    """Appends a WHERE clause with the desired filters if any exist"""
+    if has_filter:
+        query += " WHERE "
+        if filter_attributes is not None:
+            if filter_attributes.item_id is not None:
+                query += f"item_id = '{filter_attributes.item_id}' AND "
+            if filter_attributes.customer_id is not None:
+                query += f"customer_id = '{filter_attributes.customer_id}' AND "
+            if filter_attributes.rental_date is not None:
+                query += f"rental_date = '{filter_attributes.rental_date}' AND "
+            if filter_attributes.due_date is not None:
+                query += f"due_date = '{filter_attributes.due_date}' AND "
+        if min_rental_date is not None:
+            query += f"rental_date >= '{min_rental_date}' AND "
+        if max_rental_date is not None:
+            query += f"rental_date <= '{max_rental_date}' AND "
+        if min_due_date is not None:
+            query += f"due_date >= '{min_due_date}' AND "
+        if max_due_date is not None:
+            query += f"due_date <= '{max_due_date}' AND "
+        query = query[:-4] + ";"
+    else:
+        query += ";"
+
     cur.execute(query)
+
     """Creates a list of Rental objects consisting of the selected rows"""
     results = []
     for row in cur:
@@ -256,7 +376,57 @@ def get_filtered_rental_histories(filter_attributes: RentalHistory = None,
     """
     Returns a list of RentalHistory objects matching the filters.
     """
-    raise NotImplementedError("you must implement this function")
+    """Starts the query with our selection statement"""
+    query = f"SELECT * FROM rental_history"
+
+    """Checks if any filter attributes or range filters are set"""
+    has_filter = (filter_attributes is not None and
+                  (filter_attributes.item_id is not None or filter_attributes.customer_id is not None
+                   or filter_attributes.rental_date is not None or filter_attributes.due_date is not None
+                   or filter_attributes.return_date is not None))
+    has_filter = (has_filter or min_rental_date is not None or max_rental_date is not None
+                  or min_due_date is not None or max_due_date is not None
+                  or min_return_date is not None or max_return_date is not None)
+
+    """Appends a WHERE clause with the desired filters if any exist"""
+    if has_filter:
+        query += " WHERE "
+        if filter_attributes is not None:
+            if filter_attributes.item_id is not None:
+                query += f"item_id = '{filter_attributes.item_id}' AND "
+            if filter_attributes.customer_id is not None:
+                query += f"customer_id = '{filter_attributes.customer_id}' AND "
+            if filter_attributes.rental_date is not None:
+                query += f"rental_date = '{filter_attributes.rental_date}' AND "
+            if filter_attributes.due_date is not None:
+                query += f"due_date = '{filter_attributes.due_date}' AND "
+            if filter_attributes.return_date is not None:
+                query += f"return_date = '{filter_attributes.return_date}' AND "
+        if min_rental_date is not None:
+            query += f"rental_date >= '{min_rental_date}' AND "
+        if max_rental_date is not None:
+            query += f"rental_date <= '{max_rental_date}' AND "
+        if min_due_date is not None:
+            query += f"due_date >= '{min_due_date}' AND "
+        if max_due_date is not None:
+            query += f"due_date <= '{max_due_date}' AND "
+        if min_return_date is not None:
+            query += f"return_date >= '{min_return_date}' AND "
+        if max_return_date is not None:
+            query += f"return_date <= '{max_return_date}' AND "
+        query = query[:-4] + ";"
+    else:
+        query += ";"
+
+    cur.execute(query)
+
+    """Creates a list of RentalHistory objects consisting of the selected rows"""
+    results = []
+    for row in cur:
+        """Creates a RentalHistory object and appends it to the list"""
+        sel_history = RentalHistory(item_id=row[0], customer_id=row[1], rental_date=str(row[2]), due_date=str(row[3]), return_date=str(row[4]))
+        results.append(sel_history)
+    return results
 
 
 def get_filtered_waitlist(filter_attributes: Waitlist = None,
@@ -265,7 +435,42 @@ def get_filtered_waitlist(filter_attributes: Waitlist = None,
     """
     Returns a list of Waitlist objects matching the filters.
     """
-    raise NotImplementedError("you must implement this function")
+    """Starts the query with our selection statement"""
+    query = f"SELECT * FROM waitlist"
+
+    """Checks if any filter attributes or range filters are set"""
+    has_filter = (filter_attributes is not None and
+                  (filter_attributes.item_id is not None or filter_attributes.customer_id is not None
+                   or (filter_attributes.place_in_line is not None and filter_attributes.place_in_line != -1)))
+    has_filter = has_filter or min_place_in_line != -1 or max_place_in_line != -1
+
+    """Appends a WHERE clause with the desired filters if any exist"""
+    if has_filter:
+        query += " WHERE "
+        if filter_attributes is not None:
+            if filter_attributes.item_id is not None:
+                query += f"item_id = '{filter_attributes.item_id}' AND "
+            if filter_attributes.customer_id is not None:
+                query += f"customer_id = '{filter_attributes.customer_id}' AND "
+            if filter_attributes.place_in_line is not None and filter_attributes.place_in_line != -1:
+                query += f"place_in_line = {filter_attributes.place_in_line} AND "
+        if min_place_in_line != -1:
+            query += f"place_in_line >= {min_place_in_line} AND "
+        if max_place_in_line != -1:
+            query += f"place_in_line <= {max_place_in_line} AND "
+        query = query[:-4] + ";"
+    else:
+        query += ";"
+
+    cur.execute(query)
+
+    """Creates a list of Waitlist objects consisting of the selected rows"""
+    results = []
+    for row in cur:
+        """Creates a Waitlist object and appends it to the list"""
+        sel_waitlist = Waitlist(item_id=row[0], customer_id=row[1], place_in_line=row[2])
+        results.append(sel_waitlist)
+    return results
 
 
 def number_in_stock(item_id: str = None) -> int:
