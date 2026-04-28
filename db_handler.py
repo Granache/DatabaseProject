@@ -46,7 +46,41 @@ def add_customer(new_customer: Customer = None):
     new_customer - A Customer object containing a new customer to be inserted into the DB in the customer table.
         new_customer and its attributes will never be None.
     """
-    raise NotImplementedError("you must implement this function")
+    address_sections = new_customer.address.split(",")
+    street = address_sections[0].split(" ", 1)
+    street_number = street[0]
+    street_name = street[1]
+    city_name = address_sections[1][1:]
+    state_and_zip = address_sections[2][1:].split()
+    state = state_and_zip[0]
+    zip_code = state_and_zip[1]
+    """print(address_sections)
+    print(f"Number: {street_number}, Name: {street_name}")
+    print(f"City Name: {city_name}")
+    print(f"Zip Code: {zip_code}, State: {state}")"""
+
+    query = f"SELECT MAX(ca_address_sk) FROM customer_address;"
+    cur.execute(query)
+    address_sk = 0
+    for sk in cur:
+        address_sk = sk[0]
+    address_sk += 1
+
+    query = (f"INSERT INTO customer_address VALUES ({address_sk}, '{street_number}', '{street_name}', '{city_name}', "
+             f"'{state}', '{zip_code}')")
+    cur.execute(query)
+
+    customer_name = new_customer.name.split()
+    query = f"SELECT MAX(c_customer_sk) FROM customer;"
+    cur.execute(query)
+    customer_sk = 0
+    for sk in cur:
+        customer_sk = sk[0]
+    customer_sk += 1
+
+    query = (f"INSERT INTO customer VALUES ({customer_sk}, '{new_customer.customer_id}', '{customer_name[0]}', "
+             f"'{customer_name[1]}', '{new_customer.email}', {address_sk})")
+    cur.execute(query)
 
 
 def edit_customer(original_customer_id: str = None, new_customer: Customer = None):
