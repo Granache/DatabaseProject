@@ -22,7 +22,23 @@ def add_item(new_item: Item = None):
     new_item - An Item object containing a new item to be inserted into the DB in the item table.
         new_item and its attributes will never be None.
     """
-    raise NotImplementedError("you must implement this function")
+    """Select the maximum item secret key identifier, copy it to item_sk, and add 1. This our new item's sk"""
+    query = f"SELECT MAX(i_item_sk) FROM item;"
+    cur.execute(query)
+    item_sk = 0
+    for sk in cur:
+        item_sk = sk[0]
+    item_sk += 1
+
+    start_date = str(new_item.start_year) + "-01-01"
+    print(f"Start date: {start_date}, item_sk: {item_sk}")
+
+    query = (f"INSERT INTO item (i_item_sk, i_item_id, i_rec_start_date, i_product_name, "
+             f"i_brand, i_category, i_manufact, i_current_price, i_num_owned)"
+             f"VALUES ({item_sk}, '{new_item.item_id}', '{start_date}', '{new_item.product_name}', "
+             f"'{new_item.brand}', '{new_item.category}', '{new_item.manufact}', {new_item.current_price}, {new_item.num_owned})")
+
+    cur.execute(query)
 
 
 def add_customer(new_customer: Customer = None):
