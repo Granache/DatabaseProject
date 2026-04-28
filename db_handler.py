@@ -30,9 +30,10 @@ def add_item(new_item: Item = None):
         item_sk = sk[0]
     item_sk += 1
 
+    """Adds a default date and month to the start year"""
     start_date = str(new_item.start_year) + "-01-01"
-    print(f"Start date: {start_date}, item_sk: {item_sk}")
 
+    """Inserts the new item into the the Item table"""
     query = (f"INSERT INTO item (i_item_sk, i_item_id, i_rec_start_date, i_product_name, "
              f"i_brand, i_category, i_manufact, i_current_price, i_num_owned)"
              f"VALUES ({item_sk}, '{new_item.item_id}', '{start_date}', '{new_item.product_name}', "
@@ -46,6 +47,7 @@ def add_customer(new_customer: Customer = None):
     new_customer - A Customer object containing a new customer to be inserted into the DB in the customer table.
         new_customer and its attributes will never be None.
     """
+    """Splits the customer address into several strings and parses the individual variables that make it up"""
     address_sections = new_customer.address.split(",")
     street = address_sections[0].split(" ", 1)
     street_number = street[0]
@@ -54,11 +56,8 @@ def add_customer(new_customer: Customer = None):
     state_and_zip = address_sections[2][1:].split()
     state = state_and_zip[0]
     zip_code = state_and_zip[1]
-    """print(address_sections)
-    print(f"Number: {street_number}, Name: {street_name}")
-    print(f"City Name: {city_name}")
-    print(f"Zip Code: {zip_code}, State: {state}")"""
 
+    """Sets our new address secret key equal to the current maximum and increases it by 1"""
     query = f"SELECT MAX(ca_address_sk) FROM customer_address;"
     cur.execute(query)
     address_sk = 0
@@ -66,11 +65,14 @@ def add_customer(new_customer: Customer = None):
         address_sk = sk[0]
     address_sk += 1
 
+    """Inserts the address and secret key information into the customer_address table"""
     query = (f"INSERT INTO customer_address VALUES ({address_sk}, '{street_number}', '{street_name}', '{city_name}', "
              f"'{state}', '{zip_code}')")
     cur.execute(query)
 
+    """Splits the customer name string into a first and last name"""
     customer_name = new_customer.name.split()
+    """Sets our new customer secret key equal to the current maximum and increases it by 1"""
     query = f"SELECT MAX(c_customer_sk) FROM customer;"
     cur.execute(query)
     customer_sk = 0
@@ -78,6 +80,7 @@ def add_customer(new_customer: Customer = None):
         customer_sk = sk[0]
     customer_sk += 1
 
+    """Inserts the new customer information into the customer table"""
     query = (f"INSERT INTO customer VALUES ({customer_sk}, '{new_customer.customer_id}', '{customer_name[0]}', "
              f"'{customer_name[1]}', '{new_customer.email}', {address_sk})")
     cur.execute(query)
